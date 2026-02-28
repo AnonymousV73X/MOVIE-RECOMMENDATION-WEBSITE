@@ -1,0 +1,1452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CineMatch — Project Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ── TOKENS & THEME VARIABLES ─────────────────────────────────── */
+      :root {
+        /* Core UI Colors */
+        --black: #0a0a0a;
+        --black-2: #111111;
+        --black-3: #1a1a1a;
+        --black-4: #242424;
+        --black-5: #2e2e2e;
+        --white: #ffffff;
+        --grey-1: #f0f0f0;
+        --grey-2: #b0b0b0;
+        --grey-3: #666666;
+        --grey-4: #3a3a3a;
+        --border: rgba(255, 255, 255, 0.08);
+        --font: "Outfit", sans-serif;
+        --font-mono: "Fira Code", monospace;
+        --radius: 8px;
+        --radius-sm: 4px;
+
+        /* Default Theme (Yellow) - JS will override these */
+        --accent: #f5c518;
+        --accent-dim: #c49d10;
+        --accent-border: rgba(245, 197, 24, 0.25);
+        --accent-glow: rgba(245, 197, 24, 0.12);
+        --accent-text: #f5c518; /* For text */
+      }
+
+      /* Theme Specifics (Data attributes used by JS, or just rely on JS to set vars) */
+
+      /* ── RESET ────────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: var(--font);
+        background: var(--black);
+        color: var(--white);
+        min-height: 100vh;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Background Grid */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.025) 1px,
+            transparent 1px
+          );
+        background-size: 48px 48px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Dynamic Neon Glow from top */
+      body::after {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 220px;
+        /* Uses the JS-controlled CSS variable */
+        background: linear-gradient(
+          to bottom,
+          var(--accent-glow) 0%,
+          rgba(0, 0, 0, 0) 100%
+        );
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.8;
+        transition: background 0.5s ease;
+      }
+
+      /* ── HEADER (Static) ───────────────────────────────────────────── */
+      header {
+        position: relative; /* Changed from sticky */
+        z-index: 100;
+        background: transparent; /* Blends with glow */
+        border-bottom: none;
+        padding: 0 24px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1.1rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--white);
+        text-decoration: none;
+      }
+      .logo-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--accent);
+        border-radius: 50%;
+        flex-shrink: 0;
+        transition: background 0.3s;
+      }
+      .logo span {
+        color: var(--accent);
+        transition: color 0.3s;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .header-link {
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--grey-3);
+        text-decoration: none;
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        transition: all 0.2s;
+      }
+      .header-link.active {
+        color: var(--black);
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .header-link:hover:not(.active) {
+        border-color: var(--grey-4);
+        color: var(--white);
+      }
+
+      .header-badge {
+        font-size: 0.6rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--grey-3);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        padding: 4px 8px;
+        border-radius: 20px;
+        white-space: nowrap;
+      }
+
+      /* Theme Switcher */
+      .theme-switcher {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .theme-btn {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        transition:
+          transform 0.2s,
+          border-color 0.2s;
+      }
+      .theme-btn:hover {
+        transform: scale(1.2);
+      }
+      .theme-btn.active {
+        border: 2px solid var(--white);
+        transform: scale(1.1);
+      }
+      .t-yellow {
+        background: #f5c518;
+      }
+      .t-blue {
+        background: #3b82f6;
+      }
+      .t-green {
+        background: #10b981;
+      }
+      .t-maroon {
+        background: #e11d48;
+      }
+
+      /* ── LAYOUT ────────────────────────────────────────────────────── */
+      .docs-layout {
+        position: relative;
+        z-index: 2;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px 24px 100px;
+      }
+
+      /* ── HERO DOCS ─────────────────────────────────────────────────── */
+      .docs-hero {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-top: 10px;
+      }
+
+      .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 12px;
+        transition: color 0.3s;
+      }
+      .hero-eyebrow::before,
+      .hero-eyebrow::after {
+        content: "";
+        display: block;
+        width: 16px;
+        height: 1px;
+        background: var(--accent-dim);
+        transition: background 0.3s;
+      }
+
+      .hero-title {
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        color: var(--white);
+        margin-bottom: 12px;
+      }
+      .hero-title em {
+        font-style: normal;
+        color: var(--accent);
+        transition: color 0.3s;
+      }
+
+      .hero-sub {
+        font-size: 1rem;
+        font-weight: 400;
+        color: var(--grey-2);
+        margin-bottom: 24px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      /* Project Meta Grid */
+      .project-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-top: 30px;
+        text-align: left;
+      }
+      .meta-card {
+        background: var(--black-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        transition: border-color 0.2s;
+      }
+      .meta-card:hover {
+        border-color: var(--black-5);
+      }
+      .meta-card-label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--grey-3);
+        margin-bottom: 4px;
+      }
+      .meta-card-value {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--white);
+      }
+
+      /* ── TABLE OF CONTENTS (TOC) ───────────────────────────────────── */
+      .toc-section {
+        margin-bottom: 60px;
+        position: relative;
+        z-index: 2;
+      }
+      .toc-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--grey-3);
+        margin-bottom: 16px;
+        text-align: center;
+      }
+
+      .toc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+      }
+
+      .toc-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--black-2);
+        border: 1px solid var(--border);
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+      .toc-item:hover {
+        border-color: var(--accent-border);
+        transform: translateY(-2px);
+      }
+      .toc-item:hover .toc-num {
+        background: var(--accent);
+        color: var(--black);
+      }
+      .toc-item:hover .toc-name {
+        color: var(--white);
+      }
+
+      .toc-num {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--accent);
+        background: rgba(255, 255, 255, 0.05);
+        min-width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: all 0.2s;
+        border: 1px solid var(--border);
+      }
+      .toc-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--grey-1);
+        transition: color 0.2s;
+      }
+
+      /* ── CONTENT SECTIONS ──────────────────────────────────────────── */
+      .content-section {
+        margin-bottom: 60px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 50px;
+      }
+      .content-section:last-child {
+        border-bottom: none;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .section-num {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--accent);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--accent-border);
+        border-radius: 4px;
+        padding: 4px 8px;
+        flex-shrink: 0;
+        transition: all 0.3s;
+      }
+
+      .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--white);
+        letter-spacing: -0.02em;
+      }
+
+      /* ── TYPOGRAPHY ────────────────────────────────────────────────── */
+      .prose p {
+        font-size: 0.9rem;
+        line-height: 1.7;
+        color: var(--grey-2);
+        margin-bottom: 16px;
+      }
+      .prose h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--white);
+        margin-top: 28px;
+        margin-bottom: 12px;
+      }
+      .prose ul,
+      .prose ol {
+        margin-bottom: 16px;
+        padding-left: 20px;
+      }
+      .prose li {
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: var(--grey-2);
+        margin-bottom: 6px;
+      }
+      .prose li::marker {
+        color: var(--accent);
+      }
+      .prose strong {
+        color: var(--white);
+        font-weight: 600;
+      }
+      .prose em {
+        color: var(--grey-1);
+        font-style: italic;
+      }
+
+      /* ── CUSTOM COMPONENTS ──────────────────────────────────────────── */
+      .quote-block {
+        background: linear-gradient(
+          135deg,
+          var(--accent-glow) 0%,
+          rgba(255, 255, 255, 0.02) 100%
+        );
+        border-left: 3px solid var(--accent);
+        padding: 18px 20px;
+        border-radius: 0 var(--radius) var(--radius) 0;
+        margin: 20px 0;
+        transition: all 0.3s;
+      }
+      .quote-block p {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--grey-1);
+      }
+      .quote-block p strong {
+        color: var(--accent);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 20px 0;
+      }
+      .stat-item {
+        background: var(--black-2);
+        border: 1px solid var(--border);
+        padding: 16px;
+        border-radius: var(--radius);
+        text-align: center;
+      }
+      .stat-val {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 4px;
+        font-family: var(--font-mono);
+      }
+      .stat-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--grey-3);
+      }
+
+      .code-block {
+        background: var(--black-3);
+        border: 1px solid var(--black-5);
+        border-radius: var(--radius);
+        padding: 16px;
+        margin: 16px 0;
+        overflow-x: auto;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        line-height: 1.5;
+        color: var(--grey-1);
+      }
+      .code-block .comment {
+        color: var(--grey-4);
+      }
+      .code-block .keyword {
+        color: var(--teal);
+      }
+      .code-block .func {
+        color: var(--accent);
+        transition: color 0.3s;
+      }
+      .code-block .string {
+        color: #ffa657;
+      }
+
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.8rem;
+      }
+      .data-table th {
+        text-align: left;
+        background: var(--black-3);
+        color: var(--accent);
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--black-5);
+        transition: color 0.3s;
+      }
+      .data-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--grey-2);
+        vertical-align: top;
+      }
+      .data-table tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .data-table td:first-child {
+        font-weight: 600;
+        color: var(--white);
+      }
+
+      .signal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin: 24px 0;
+      }
+      .signal-card {
+        background: var(--black-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .signal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .signal-name {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--white);
+      }
+      .signal-weight {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--accent);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition: color 0.3s;
+      }
+      .signal-desc {
+        font-size: 0.75rem;
+        color: var(--grey-3);
+        line-height: 1.4;
+      }
+
+      .checklist {
+        list-style: none;
+        padding: 0;
+      }
+      .checklist li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: var(--black-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+        color: var(--grey-1);
+      }
+      .checklist li::before {
+        content: "✓";
+        color: var(--black);
+        background: var(--teal);
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6rem;
+        font-weight: bold;
+        flex-shrink: 0;
+      }
+
+      .comparison-box {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin: 20px 0;
+      }
+      .comp-card {
+        background: var(--black-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        text-align: center;
+      }
+      .comp-card.bad {
+        border-color: rgba(255, 107, 107, 0.3);
+      }
+      .comp-card.good {
+        border-color: rgba(77, 217, 192, 0.3);
+      }
+      .comp-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--grey-3);
+        margin-bottom: 8px;
+      }
+      .comp-val {
+        font-size: 1.8rem;
+        font-weight: 800;
+        font-family: var(--font-mono);
+      }
+      .comp-card.bad .comp-val {
+        color: var(--red);
+      }
+      .comp-card.good .comp-val {
+        color: var(--teal);
+      }
+      .comp-sub {
+        font-size: 0.7rem;
+        color: var(--grey-4);
+        margin-top: 4px;
+      }
+      :root {
+        --red: #ff6b6b;
+        --teal: #4dd9c0;
+      }
+
+      .repo-tree {
+        background: var(--black-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 20px;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        color: var(--grey-2);
+        margin-top: 16px;
+      }
+      .tree-folder {
+        color: var(--accent);
+        transition: color 0.3s;
+      }
+      .tree-file {
+        color: var(--grey-1);
+      }
+      .tree-comment {
+        color: var(--grey-4);
+        margin-left: 8px;
+      }
+
+      /* ── FOOTER ────────────────────────────────────────────────────── */
+      footer {
+        position: relative;
+        z-index: 2;
+        border-top: 1px solid var(--border);
+        padding: 24px;
+        text-align: center;
+      }
+      .footer-text {
+        font-size: 0.65rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--grey-3);
+      }
+      .footer-text strong {
+        color: var(--accent);
+        transition: color 0.3s;
+      }
+
+      /* Responsive */
+      @media (max-width: 600px) {
+        .project-meta {
+          grid-template-columns: 1fr 1fr;
+        }
+        .comparison-box {
+          grid-template-columns: 1fr;
+        }
+        .docs-layout {
+          padding: 20px 16px 60px;
+        }
+        header {
+          padding: 0 16px;
+        }
+        .header-badge {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── HEADER ──────────────────────────────────────────────── -->
+    <header>
+      <a class="logo" href="index.html">
+        <div class="logo-dot"></div>
+        Cine<span>Match</span>
+      </a>
+      <div class="header-actions">
+        <div class="theme-switcher">
+          <div
+            class="theme-btn t-yellow active"
+            data-theme="yellow"
+            title="Yellow Theme"
+          ></div>
+          <div
+            class="theme-btn t-blue"
+            data-theme="blue"
+            title="Blue Theme"
+          ></div>
+          <div
+            class="theme-btn t-green"
+            data-theme="green"
+            title="Green Theme"
+          ></div>
+          <div
+            class="theme-btn t-maroon"
+            data-theme="maroon"
+            title="Maroon Theme"
+          ></div>
+        </div>
+        <a href="/" class="header-link">App</a>
+       
+        <span class="header-badge">COMP 413</span>
+      </div>
+    </header>
+
+    <!-- ── LAYOUT ──────────────────────────────────────────────── -->
+    <div class="docs-layout">
+      <!-- ── HERO ────────────────────────────────────────────────── -->
+      <section class="docs-hero">
+        <div class="hero-eyebrow">AI Mini-Project Report</div>
+        <h1 class="hero-title">
+          Content-Based Movie<br /><em>Recommendation System</em>
+        </h1>
+        <p class="hero-sub">
+          Multi-Signal TF-IDF Similarity with Sparse Vector Architecture
+        </p>
+
+        <div class="project-meta">
+          <div class="meta-card">
+            <div class="meta-card-label">Unit</div>
+            <div class="meta-card-value">
+              Artificial Intelligence — COMP 413
+            </div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-card-label">Institution</div>
+            <div class="meta-card-value">Kabarak University</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-card-label">Dataset</div>
+            <div class="meta-card-value">TMDB + IMDB (Kaggle)</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-card-label">Date</div>
+            <div class="meta-card-value">February 2026</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── TABLE OF CONTENTS ───────────────────────────────────── -->
+      <nav class="toc-section">
+        <div class="toc-title">Table of Contents</div>
+        <div class="toc-grid">
+          <a href="#sec-1" class="toc-item">
+            <div class="toc-num">01</div>
+            <div class="toc-name">Problem Definition</div>
+          </a>
+          <a href="#sec-2" class="toc-item">
+            <div class="toc-num">02</div>
+            <div class="toc-name">Data Acquisition</div>
+          </a>
+          <a href="#sec-3" class="toc-item">
+            <div class="toc-num">03</div>
+            <div class="toc-name">Data Cleaning</div>
+          </a>
+          <a href="#sec-4" class="toc-item">
+            <div class="toc-num">04</div>
+            <div class="toc-name">Exploratory Analysis</div>
+          </a>
+          <a href="#sec-5" class="toc-item">
+            <div class="toc-num">05</div>
+            <div class="toc-name">Feature Engineering</div>
+          </a>
+          <a href="#sec-6" class="toc-item">
+            <div class="toc-num">06</div>
+            <div class="toc-name">Model Building</div>
+          </a>
+          <a href="#sec-7" class="toc-item">
+            <div class="toc-num">07</div>
+            <div class="toc-name">Evaluation</div>
+          </a>
+          <a href="#sec-8" class="toc-item">
+            <div class="toc-num">08</div>
+            <div class="toc-name">Results & Insights</div>
+          </a>
+          <a href="#sec-9" class="toc-item">
+            <div class="toc-num">09</div>
+            <div class="toc-name">Deployment</div>
+          </a>
+          <a href="#sec-10" class="toc-item">
+            <div class="toc-num">10</div>
+            <div class="toc-name">Documentation</div>
+          </a>
+        </div>
+      </nav>
+
+      <!-- ── 1. PROBLEM DEFINITION ────────────────────────────────── -->
+      <section id="sec-1" class="content-section">
+        <div class="section-header">
+          <span class="section-num">01</span>
+          <h2 class="section-title">Problem Definition & Objective</h2>
+        </div>
+        <div class="prose">
+          <div class="quote-block">
+            <p>
+              <strong>The Problem:</strong> Every day, millions of people open
+              streaming platforms and spend a frustrating amount of time
+              scrolling through hundreds of movie titles without knowing what to
+              watch. The problem is not a lack of movies — it is the absence of
+              a reliable, personalized guide.
+            </p>
+          </div>
+
+          <h3>Project Objective</h3>
+          <p>
+            To build a content-based movie recommendation system that accepts
+            any movie title as input and returns a ranked list of the ten most
+            similar movies. Similarity is determined by combining five
+            complementary content signals extracted from rich movie metadata.
+          </p>
+
+          <h3>Why Content-Based Filtering?</h3>
+          <p>
+            The TMDB/IMDB dataset provides per-movie metadata rather than
+            per-user rating logs. This makes collaborative filtering impossible,
+            as there is no user behavior records to model. Instead, we extract
+            and combine five expressive content signals that together describe
+            the complete identity of a film:
+          </p>
+          <ul>
+            <li>
+              <strong>Genre labels</strong> — the category of film (Action,
+              Drama, Sci-Fi).
+            </li>
+            <li>
+              <strong>Plot keywords</strong> — specific thematic elements
+              (heist, dream, dystopia).
+            </li>
+            <li>
+              <strong>Creative personnel</strong> — directors (triple-weighted),
+              writers, and cast.
+            </li>
+            <li>
+              <strong>Overview text</strong> — full plot synopsis vectorized
+              with bigrams.
+            </li>
+            <li>
+              <strong>Numeric metrics</strong> — vote average, count, revenue,
+              runtime, popularity.
+            </li>
+          </ul>
+
+          <h3>Relevance & Impact</h3>
+          <p>
+            Recommendation systems are among the most commercially valuable AI
+            applications. Netflix states its engine drives over 80% of content
+            watched, saving over <strong>$1 billion annually</strong>. This
+            project simulates a real-world content-based pipeline at academic
+            scale using a dataset of <strong>367,909 movies</strong>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── 2. DATA ACQUISITION ──────────────────────────────────── -->
+      <section id="sec-2" class="content-section">
+        <div class="section-header">
+          <span class="section-num">02</span>
+          <h2 class="section-title">Data Acquisition</h2>
+        </div>
+        <div class="prose">
+          <p>
+            The dataset used is the
+            <a href="https://www.kaggle.com/datasets/ggtejas/tmdb-imdb-merged-movies-dataset" style="text-decoration: none;"> <strong>TMDB + IMDB Movies Dataset</strong> </a>  published on Kaggle. It
+            is a large-scale collection combining TMDB attributes with IMDB
+            rating data.
+          </p>
+
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-val">367,909</div>
+              <div class="stat-label">Total Records</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-val">50,000</div>
+              <div class="stat-label">Working Set</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-val">CSV</div>
+              <div class="stat-label">File Format</div>
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Attribute</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Filtering Rationale</td>
+                <td>
+                  317,909 obscure films (near-zero votes) removed; only top 50K
+                  retained for meaningful similarity.
+                </td>
+              </tr>
+              <tr>
+                <td>Columns Used</td>
+                <td>
+                  title, genres, keywords, directors, writers, cast, overview,
+                  vote_average, vote_count, revenue, runtime, release_date,
+                  poster_path, popularity
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 3. DATA CLEANING ─────────────────────────────────────── -->
+      <section id="sec-3" class="content-section">
+        <div class="section-header">
+          <span class="section-num">03</span>
+          <h2 class="section-title">Data Cleaning & Preprocessing</h2>
+        </div>
+        <div class="prose">
+          <h3>3.1 Filter to Released Films</h3>
+          <p>
+            Only <code>Released</code> films are meaningful for recommendations.
+            Unreleased films have no audience history.
+          </p>
+          <div class="code-block">
+            <span class="keyword">df</span> = df[df[<span class="string"
+              >'status'</span
+            >] == <span class="string">'Released'</span>].copy()
+          </div>
+
+          <h3>3.2 Remove Nulls & Duplicates</h3>
+          <div class="code-block">
+            <span class="keyword">df</span>.dropna(subset=[<span class="string"
+              >'title'</span
+            >], inplace=<span class="keyword">True</span>)
+            <span class="keyword">df</span>.drop_duplicates(subset=[<span
+              class="string"
+              >'title'</span
+            >], keep=<span class="string">'first'</span>, inplace=<span
+              class="keyword"
+              >True</span
+            >)
+          </div>
+
+          <h3>3.3 Filter Top 50,000 by Vote Count</h3>
+          <p>
+            The vast majority of raw movies have zero or near-zero votes. We
+            retain the 50,000 most-voted movies to ensure meaningful similarity
+            scores and manage memory.
+          </p>
+          <div class="code-block">
+            <span class="keyword">df</span> = df.nlargest(<span class="string"
+              >50_000</span
+            >, <span class="string">'vote_count'</span>)
+          </div>
+
+          <h3>3.4 Director Triple-Weighting</h3>
+          <p>
+            The director's creative identity is the single strongest
+            discriminating signal. The director token is inserted three times to
+            give it higher TF-IDF weight.
+          </p>
+          <div class="code-block">
+            <span class="keyword">def</span>
+            <span class="func">people_str</span>(row): parts = []
+            <span class="keyword">if</span> row[<span class="string"
+              >'directors'</span
+            >]: d = clean(row[<span class="string">'directors'</span
+            >]).replace(<span class="string">' '</span>,
+            <span class="string">'_'</span>) parts += [d, d, d]
+            <span class="comment"># triple weight</span>
+            <span class="comment"># ... add writers and cast ...</span>
+            <span class="keyword">return</span>
+            <span class="string">' '</span>.join(parts)
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 4. EDA ────────────────────────────────────────────────── -->
+      <section id="sec-4" class="content-section">
+        <div class="section-header">
+          <span class="section-num">04</span>
+          <h2 class="section-title">Exploratory Data Analysis</h2>
+        </div>
+        <div class="prose">
+          <p>
+            Analysis was conducted on the filtered 50,000-movie working set to
+            validate design decisions.
+          </p>
+          <ul>
+            <li>
+              <strong>Vote Count:</strong> Heavily right-skewed. Log-scaling
+              (log1p) is essential to prevent blockbusters from dominating the
+              numeric signal.
+            </li>
+            <li>
+              <strong>Genre Distribution:</strong> Drama and Comedy are the most
+              common (>20%). 19 distinct labels ensure TF-IDF produces
+              discriminating vectors.
+            </li>
+            <li>
+              <strong>Keywords:</strong> Median of ~8 keywords per movie. Bigram
+              TF-IDF captures compound concepts like "artificial intelligence".
+            </li>
+            <li>
+              <strong>Directors:</strong> Top 10 directors account for ~4% of
+              the set, validating the decision to triple-weight director tokens.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── 5. FEATURE ENGINEERING ───────────────────────────────── -->
+      <section id="sec-5" class="content-section">
+        <div class="section-header">
+          <span class="section-num">05</span>
+          <h2 class="section-title">Feature Engineering</h2>
+        </div>
+        <div class="prose">
+          <div class="quote-block">
+            <p>
+              <strong>The Memory Problem:</strong> A naive implementation would
+              compute pairwise similarity for each signal, producing five N x N
+              matrices. For N=50,000, this requires
+              <strong>50 GB of RAM</strong> — impossible in Colab. The solution:
+              store normalized vectors, not scores.
+            </p>
+          </div>
+
+          <h3>The 5-Signal Architecture</h3>
+          <p>
+            We fuse five complementary signals into one weighted sparse matrix.
+          </p>
+
+          <div class="signal-grid">
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-name">Genre (TF-IDF)</span>
+                <span class="signal-weight">W: 0.25</span>
+              </div>
+              <div class="signal-desc">
+                Content guardrail ensuring thematic relevance. Rare combinations
+                get higher IDF weights.
+              </div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-name">Keywords (Bigram)</span>
+                <span class="signal-weight">W: 0.20</span>
+              </div>
+              <div class="signal-desc">
+                Plot-level specificity. Captures compound concepts like "based
+                on comic".
+              </div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-name">People (Director x3)</span>
+                <span class="signal-weight">W: 0.20</span>
+              </div>
+              <div class="signal-desc">
+                Creative identity. Strongest discriminating signal. Matches
+                auteur styles.
+              </div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-name">Overview (Bigram)</span>
+                <span class="signal-weight">W: 0.15</span>
+              </div>
+              <div class="signal-desc">
+                Thematic NLP similarity from plot synopsis.
+              </div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-name">Numeric Metrics</span>
+                <span class="signal-weight">W: 0.20</span>
+              </div>
+              <div class="signal-desc">
+                Quality and cultural impact signal. Log-scaled to handle skew.
+              </div>
+            </div>
+          </div>
+
+          <h3>Memory Efficiency</h3>
+          <div class="comparison-box">
+            <div class="comp-card bad">
+              <div class="comp-label">Dense Pairwise Matrix</div>
+              <div class="comp-val">~40+ GB</div>
+              <div class="comp-sub">Crashes Colab</div>
+            </div>
+            <div class="comp-card good">
+              <div class="comp-label">Sparse Feature Matrix</div>
+              <div class="comp-val">~150 MB</div>
+              <div class="comp-sub">Tractable & Fast</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 6. MODEL BUILDING ────────────────────────────────────── -->
+      <section id="sec-6" class="content-section">
+        <div class="section-header">
+          <span class="section-num">06</span>
+          <h2 class="section-title">Model Building</h2>
+        </div>
+        <div class="prose">
+          <h3>Offline Training</h3>
+          <p>
+            Training runs once in Colab and produces four serialized artifacts.
+          </p>
+          <div class="code-block">
+            pickle.dump(combined, open(<span class="string"
+              >'combined_matrix.pkl'</span
+            >, <span class="string">'wb'</span>), protocol=4)
+            pickle.dump(movie_meta, open(<span class="string"
+              >'movie_meta.pkl'</span
+            >, <span class="string">'wb'</span>), protocol=4)
+            pickle.dump(title_index, open(<span class="string"
+              >'title_index.pkl'</span
+            >, <span class="string">'wb'</span>), protocol=4)
+          </div>
+
+          <h3>Query-Time Inference</h3>
+          <p>
+            Finding top-N recommendations requires a single sparse matrix-vector
+            multiplication. Because rows are L2-normalized, the dot product
+            equals cosine similarity exactly.
+          </p>
+          <div class="code-block">
+            idx = title_index[movie_title] query_vec = combined[idx] scores =
+            (combined @ query_vec.T).toarray().flatten() scores[idx] = -1
+            <span class="comment"># exclude self</span>
+            top_idx = np.argpartition(scores, -n)[-n:]
+          </div>
+
+          <h3>Sample Output: Inception (2010)</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Movie</th>
+                <th>Score</th>
+                <th>Driver</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>Interstellar (2014)</td>
+                <td>0.8821</td>
+                <td>Director (Nolan)</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>The Dark Knight (2008)</td>
+                <td>0.8134</td>
+                <td>Director (Nolan)</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>Memento (2000)</td>
+                <td>0.7943</td>
+                <td>Director (Nolan)</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>The Matrix (1999)</td>
+                <td>0.7612</td>
+                <td>Genre/Keywords</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 7. EVALUATION ────────────────────────────────────────── -->
+      <section id="sec-7" class="content-section">
+        <div class="section-header">
+          <span class="section-num">07</span>
+          <h2 class="section-title">Model Evaluation</h2>
+        </div>
+        <div class="prose">
+          <p>
+            Without user rating logs, quantitative Precision@K is not
+            applicable. Evaluation is conducted qualitatively through signal
+            ablation.
+          </p>
+
+          <h3>Signal Ablation Comparison</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Input</th>
+                <th>Genre Only</th>
+                <th>People Only</th>
+                <th>Full System</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Inception</td>
+                <td>Avatar, Avengers (Broad)</td>
+                <td>Dark Knight, Tenet (Precise)</td>
+                <td>Interstellar, Dark Knight, Memento</td>
+              </tr>
+              <tr>
+                <td>Toy Story</td>
+                <td>Shrek, Ice Age</td>
+                <td>Toy Story 2, Bug's Life</td>
+                <td>Toy Story 2, Toy Story 3</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            The full five-signal system surfaces recommendations that are
+            simultaneously thematically relevant, directionally consistent, and
+            numerically comparable.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── 8. RESULTS & INSIGHTS ─────────────────────────────────── -->
+      <section id="sec-8" class="content-section">
+        <div class="section-header">
+          <span class="section-num">08</span>
+          <h2 class="section-title">Results & Insights</h2>
+        </div>
+        <div class="prose">
+          <h3>Key Findings</h3>
+          <ul>
+            <li>
+              <strong>Director triple-weighting</strong> is the most impactful
+              design decision for auteur filmmakers.
+            </li>
+            <li>
+              <strong>Bigram TF-IDF</strong> on keywords outperforms unigrams
+              for semantic concepts.
+            </li>
+            <li>
+              <strong>Log-scaling</strong> numeric columns is essential to
+              prevent popularity bias.
+            </li>
+          </ul>
+
+          <h3>Limitations</h3>
+          <ul>
+            <li>
+              <strong>No personalization:</strong> The system is item-to-item
+              only, not user-specific.
+            </li>
+            <li>
+              <strong>Cold-start:</strong> New films with zero votes have a
+              weaker numeric signal.
+            </li>
+            <li>
+              <strong>Genre granularity:</strong> Labels are coarse (e.g.,
+              Horror covers many sub-genres).
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── 9. DEPLOYMENT ────────────────────────────────────────── -->
+      <section id="sec-9" class="content-section">
+        <div class="section-header">
+          <span class="section-num">09</span>
+          <h2 class="section-title">Deployment</h2>
+        </div>
+        <div class="prose">
+          <p>
+            The system is deployed as a Flask web application. It loads
+            artifacts at startup and serves recommendations via a REST API.
+          </p>
+
+          <h3>Repository Structure</h3>
+          <div class="repo-tree">
+            <div class="tree-folder">movie-recommender-website/</div>
+            <div>├── <span class="tree-folder">models/</span></div>
+            <div>│ ├── combined_matrix.pkl</div>
+            <div>│ ├── movie_meta.pkl</div>
+            <div>│ └── title_index.pkl</div>
+            <div>├── <span class="tree-folder">templates/</span></div>
+            <div>│ └── index.html</div>
+            <div>│ └── readme.html</div>
+            <div>├── <span class="tree-folder">report/</span></div>
+            <div>│ └── COMP413_Report_v2.docx</div>
+            <div>│ └── COMP413_Report_v2.pdf</div>
+            <div>
+              ├── <span class="tree-file">app.py</span>
+              <span class="tree-comment"># Flask backend</span>
+            </div>
+            <div>└── <span class="tree-file">requirements.txt</span></div>
+          </div>
+
+          <h3>Run Locally</h3>
+          <div class="code-block">
+            pip install flask pandas numpy scikit-learn scipy python app.py
+            <span class="comment"># Open http://localhost:5000</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 10. DOCUMENTATION ────────────────────────────────────── -->
+      <section id="sec-10" class="content-section">
+        <div class="section-header">
+          <span class="section-num">10</span>
+          <h2 class="section-title">Documentation & Presentation</h2>
+        </div>
+        <div class="prose">
+          <h3>Submission Checklist</h3>
+          <ul class="checklist">
+            <li>Project Report (DOCX/PDF) — 10 sections complete.</li>
+            <li>Colab Training Script — Mount Drive, train, save PKLs.</li>
+            <li>combined_matrix.pkl — Sparse 50K × 13K matrix.</li>
+            <li>movie_meta.pkl — Metadata dictionary.</li>
+            <li>app.py — Flask backend with API endpoints.</li>
+            <li>Presentation Slides — 12-slide deck.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+
+    <!-- ── FOOTER ───────────────────────────────────────────────── -->
+    <footer>
+      <div class="footer-text">
+        © 2026 <strong>Kabarak University</strong> · School of Science,
+        Engineering & Technology<br />
+        COMP 413 — Artificial Intelligence
+      </div>
+    </footer>
+
+    <script>
+      // Theme Switching Logic
+      const root = document.documentElement;
+      const themeBtns = document.querySelectorAll(".theme-btn");
+
+      const themes = {
+        yellow: {
+          accent: "#F5C518",
+          dim: "#c49d10",
+          border: "rgba(245,197,24,0.25)",
+          glow: "rgba(245,197,24,0.12)",
+        },
+        blue: {
+          accent: "#3B82F6",
+          dim: "#2563EB",
+          border: "rgba(59,130,246,0.25)",
+          glow: "rgba(59,130,246,0.12)",
+        },
+        green: {
+          accent: "#10B981",
+          dim: "#059669",
+          border: "rgba(16,185,129,0.25)",
+          glow: "rgba(16,185,129,0.12)",
+        },
+        maroon: {
+          accent: "#E11D48", // Neon Rose/Red for better visibility on dark
+          dim: "#BE123C",
+          border: "rgba(225,29,72,0.25)",
+          glow: "rgba(225,29,72,0.12)",
+        },
+      };
+
+      function setTheme(themeName) {
+        const theme = themes[themeName];
+        if (!theme) return;
+
+        root.style.setProperty("--accent", theme.accent);
+        root.style.setProperty("--accent-dim", theme.dim);
+        root.style.setProperty("--accent-border", theme.border);
+        root.style.setProperty("--accent-glow", theme.glow);
+
+        // Update active button state
+        themeBtns.forEach((btn) => {
+          btn.classList.remove("active");
+          if (btn.dataset.theme === themeName) {
+            btn.classList.add("active");
+          }
+        });
+      }
+
+      themeBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          setTheme(btn.dataset.theme);
+        });
+      });
+    </script>
+  </body>
+</html>

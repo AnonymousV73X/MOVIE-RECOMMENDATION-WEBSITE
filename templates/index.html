@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineMatch — Content-Based Movie Recommender</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+/* ── TOKENS ─────────────────────────────────────────────────── */
+:root {
+  --black:      #0a0a0a;
+  --black-2:    #111111;
+  --black-3:    #1a1a1a;
+  --black-4:    #242424;
+  --black-5:    #2e2e2e;
+  
+  /* Default Theme (Yellow) - JS will override these */
+  --accent:       #F5C518;
+  --accent-dim:   #c49d10;
+  --accent-border: rgba(245,197,24,0.25);
+  --accent-glow:  rgba(245,197,24,0.12);
+  
+  --white:      #ffffff;
+  --grey-1:     #f0f0f0;
+  --grey-2:     #b0b0b0;
+  --grey-3:     #666666;
+  --grey-4:     #3a3a3a;
+  --border:     rgba(255,255,255,0.08);
+  
+  --teal:       #4dd9c0;
+  --red:        #ff6b6b;
+  
+  --font:       'Outfit', sans-serif;
+  --radius:     8px;
+  --radius-sm:  4px;
+}
+
+/* ── RESET & STRICT FONT ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+body, input, button, select, textarea, .card-rank, .card-sequel-badge, .score-pct, option {
+  font-family: var(--font);
+}
+
+body {
+  background: var(--black);
+  color: var(--white);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Background Grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dynamic Neon Glow from top */
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 180px;
+  background: linear-gradient(
+    to bottom,
+    var(--accent-glow) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+  transition: background 0.5s ease;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+header {
+  position: absolute; 
+  top: 0; left: 0; right: 0; 
+  z-index: 100;
+  background: transparent;
+  border-bottom: none;
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex; align-items: center;
+  font-size: 1.1rem; font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--white); text-decoration: none;
+}
+.logo-dot {
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 50%; flex-shrink: 0;
+  transition: background 0.3s;
+}
+.logo span { color: var(--accent); transition: color 0.3s; }
+
+.header-actions { display: flex; align-items: center; gap: 10px; }
+
+.header-link {
+  font-size: 0.6rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent); text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid var(--accent-border); border-radius: 20px;
+  transition: background 0.2s;
+}
+.header-link:hover { background: var(--accent-glow); }
+
+.header-badge {
+  font-size: 0.6rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--grey-3); background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  padding: 4px 8px; border-radius: 20px; white-space: nowrap;
+}
+
+/* Theme Switcher */
+.theme-switcher { display: flex; gap: 6px; align-items: center; }
+.theme-btn {
+  width: 14px; height: 14px; border-radius: 50%; 
+  border: 1px solid rgba(255,255,255,0.2); 
+  cursor: pointer; transition: transform 0.2s, border-color 0.2s;
+}
+.theme-btn:hover { transform: scale(1.2); }
+.theme-btn.active { border: 2px solid var(--white); transform: scale(1.1); }
+.t-yellow { background: #F5C518; }
+.t-blue { background: #3B82F6; }
+.t-green { background: #10B981; }
+.t-maroon { background: #E11D48; }
+
+/* ── HERO ────────────────────────────────────────────────────── */
+.hero {
+  position: relative; 
+  z-index: 10; 
+  padding: 100px 20px 40px;
+  text-align: center;
+  max-width: 700px; margin: 0 auto;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 500px; height: 260px;
+  background: radial-gradient(ellipse at 50% 0%, var(--accent-glow) 0%, transparent 70%);
+  pointer-events: none;
+  transition: background 0.5s ease;
+}
+
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 12px;
+  opacity: 0; animation: fadeUp .5s ease forwards .05s;
+  transition: color 0.3s;
+}
+.hero-eyebrow::before, .hero-eyebrow::after {
+  content: ''; display: block;
+  width: 16px; height: 1px; background: var(--accent-dim);
+  transition: background 0.3s;
+}
+
+.hero-title {
+  font-size: clamp(1.8rem, 6vw, 3.2rem);
+  font-weight: 800; letter-spacing: -0.03em; line-height: 1.1;
+  color: var(--white); margin-bottom: 8px;
+  opacity: 0; animation: fadeUp .5s ease forwards .15s;
+}
+.hero-title em { font-style: normal; color: var(--accent); transition: color 0.3s; }
+
+.hero-sub {
+  font-size: 0.9rem; font-weight: 400; color: var(--grey-2);
+  margin-bottom: 28px;
+  opacity: 0; animation: fadeUp .5s ease forwards .25s;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── SEARCH BAR ──────────────────────────────────────────────── */
+.search-wrap {
+  position: relative; max-width: 560px; margin: 0 auto;
+  opacity: 0; animation: fadeUp .5s ease forwards .35s;
+}
+
+.search-row {
+  display: flex; gap: 0;
+  background: var(--black-3);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  transition: border-color .2s, box-shadow .2s;
+}
+.search-row:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.search-icon {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 12px; color: var(--grey-3); flex-shrink: 0;
+}
+.search-icon svg { width: 16px; height: 16px; }
+
+.search-input {
+  flex: 1; padding: 12px 6px;
+  background: transparent; border: none; outline: none;
+  color: var(--white);
+  font-size: 0.9rem; font-weight: 400; min-width: 0;
+}
+.search-input::placeholder { color: var(--grey-3); }
+
+.search-btn {
+  background: var(--accent); color: var(--black);
+  border: none; padding: 0 18px;
+  font-size: 0.8rem;
+  font-weight: 700; letter-spacing: 0.04em;
+  cursor: pointer; transition: background .15s; flex-shrink: 0;
+}
+.search-btn:hover  { filter: brightness(1.1); }
+.search-btn:active { filter: brightness(0.9); }
+
+/* ── DROPDOWN ────────────────────────────────────────────────── */
+.dropdown {
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--black-3);
+  border: 1.5px solid var(--black-5); border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px var(--accent-border);
+  overflow: hidden; z-index: 9999;
+  max-height: 360px; overflow-y: auto;
+}
+.dropdown.open { display: block; }
+
+.dd-header {
+  padding: 8px 12px 6px;
+  font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--grey-3); border-bottom: 1px solid var(--border);
+}
+
+.dd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; cursor: pointer;
+  transition: background .1s;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.dd-item:last-child { border-bottom: none; }
+.dd-item:hover { background: var(--accent-glow); }
+.dd-item:hover .dd-title { color: var(--accent); }
+
+.dd-thumb {
+  width: 36px; height: 54px;
+  object-fit: cover; border-radius: 3px;
+  background: var(--black-4); flex-shrink: 0;
+}
+.dd-thumb-ph {
+  width: 36px; height: 54px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--black-4); border-radius: 3px;
+  font-size: 0.9rem; color: var(--grey-4); flex-shrink: 0;
+}
+
+.dd-content {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 6px; min-width: 0; flex: 1;
+}
+.dd-title {
+  font-size: 0.85rem; font-weight: 500; color: var(--white);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0; flex-shrink: 1;
+}
+.dd-year {
+  font-size: 0.7rem; font-weight: 600; color: var(--accent);
+  white-space: nowrap; background: var(--accent-glow);
+  padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
+}
+.dd-genre {
+  font-size: 0.65rem; font-weight: 400; color: var(--grey-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex-shrink: 1; display: none;
+}
+
+/* ── SIGNAL PILLS ─────────────────────────────────────────────── */
+.signal-pills {
+  display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;
+  margin-top: 14px;
+  opacity: 0; animation: fadeUp .5s ease forwards .45s;
+  transition: opacity 0.15s, visibility 0.15s;
+}
+.signal-pills.hidden {
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+.signal-pill {
+  font-size: 0.6rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--grey-3); border: 1px solid var(--border);
+  padding: 3px 8px; border-radius: 20px;
+  transition: color .15s, border-color .15s;
+}
+.signal-pill:hover { color: var(--accent); border-color: var(--accent-border); }
+
+/* ── CONTENT ─────────────────────────────────────────────────── */
+.content {
+  position: relative; z-index: 2;
+  max-width: 1100px; margin: 0 auto;
+  padding: 0 16px 60px;
+}
+
+/* ── INPUT CARD ──────────────────────────────────────────────── */
+.input-card-wrap { display: none; margin-bottom: 24px; }
+.input-card-wrap.visible { display: block; }
+
+.input-card {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--black-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  position: relative; overflow: hidden;
+  animation: fadeUp .35s ease both;
+}
+.input-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--accent);
+}
+
+.input-poster {
+  width: 60px; flex-shrink: 0; border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--black-4);
+  aspect-ratio: 2/3; display: flex; align-items: center; justify-content: center;
+}
+.input-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.input-poster-ph { font-size: 1.4rem; }
+
+.input-info { flex: 1; min-width: 0; }
+.input-label {
+  font-size: 0.55rem; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 4px;
+}
+.input-title {
+  font-size: 1.1rem; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--white);
+  line-height: 1.15; margin-bottom: 4px;
+}
+.input-meta {
+  display: flex; gap: 6px; align-items: center;
+  flex-wrap: wrap; margin-bottom: 6px;
+}
+.meta-tag { font-size: 0.65rem; font-weight: 500; color: var(--grey-2); }
+.meta-tag.yellow { color: var(--accent); font-weight: 700; }
+.meta-sep { color: var(--grey-4); font-size: 0.7rem; }
+.input-tagline {
+  font-size: 0.75rem; font-style: italic;
+  color: var(--grey-3); margin-bottom: 4px; display: none;
+}
+.input-overview {
+  font-size: 0.75rem; font-weight: 400; color: var(--grey-2);
+  line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* ── RESULTS HEADER ──────────────────────────────────────────── */
+.results-wrap { display: none; }
+.results-wrap.visible { display: block; }
+
+.results-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap; gap: 12px;
+}
+.results-header h2 {
+  font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--grey-2);
+  margin: 0;
+}
+.results-header h2 strong { color: var(--accent); font-weight: 800; }
+.results-badge {
+  font-size: 0.6rem; font-weight: 600; color: var(--grey-3);
+  background: var(--black-3); border: 1px solid var(--border);
+  padding: 2px 8px; border-radius: 20px;
+}
+
+/* ── SORT CONTROL ─────────────────────────────────────────────── */
+.sort-control {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: auto;
+}
+.sort-label {
+  font-size: 0.6rem; font-weight: 600; color: var(--grey-3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.sort-select {
+  background: var(--black-2); color: var(--white);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.75rem; font-weight: 500;
+  cursor: pointer; outline: none;
+  transition: border-color 0.2s;
+}
+.sort-select:hover { border-color: var(--grey-4); }
+.sort-select:focus { border-color: var(--accent); }
+.sort-select option { background: var(--black-2); color: var(--white); }
+
+/* ── CARDS GRID ───────────────────────────────────────────────── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.result-card {
+  background: var(--black-2); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  display: flex; flex-direction: column; cursor: pointer;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+  animation: cardIn .3s ease both;
+}
+.result-card:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+}
+
+/* Sequel cards teal accent */
+.result-card.is-sequel {
+  border-color: rgba(77,217,192,0.3);
+}
+.result-card.is-sequel:hover {
+  border-color: rgba(77,217,192,0.6);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(77,217,192,0.15);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-poster {
+  position: relative; width: 100%; aspect-ratio: 2/3;
+  background: var(--black-4); overflow: hidden; flex-shrink: 0;
+}
+.card-poster img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform .4s ease;
+}
+.result-card:hover .card-poster img { transform: scale(1.03); }
+
+.card-poster-ph {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: var(--black-5);
+  background: linear-gradient(135deg, var(--black-3) 0%, var(--black-4) 100%);
+}
+
+.card-rank {
+  position: absolute; top: 6px; left: 6px;
+  background: var(--accent); color: var(--black);
+  font-size: 0.6rem; font-weight: 800;
+  padding: 2px 6px; border-radius: 3px;
+}
+
+.card-sequel-badge {
+  position: absolute; top: 6px; left: 6px;
+  background: var(--teal); color: var(--black);
+  font-size: 0.55rem; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 3px;
+}
+
+.card-score-badge {
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(10,10,10,0.85); color: var(--white);
+  font-size: 0.6rem; font-weight: 600;
+  padding: 2px 6px; border-radius: 3px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.card-body {
+  padding: 10px; flex: 1;
+  display: flex; flex-direction: column; gap: 3px;
+}
+
+.card-title {
+  font-size: 0.8rem; font-weight: 700; color: var(--white);
+  line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.card-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.card-year { font-size: 0.65rem; font-weight: 600; color: var(--accent); }
+.card-dot  { color: var(--black-5); font-size: 0.4rem; }
+.card-rating {
+  display: flex; align-items: center; gap: 2px;
+  font-size: 0.65rem; font-weight: 600; color: var(--grey-2);
+}
+.card-rating svg { width: 8px; height: 8px; fill: var(--accent); }
+.card-runtime { display: none; }
+.card-genre {
+  font-size: 0.6rem; font-weight: 400; color: var(--grey-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.card-director { display: none; }
+.card-overview {
+  font-size: 0.65rem; font-weight: 400; color: var(--grey-3);
+  line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+  flex: 1; margin-top: 2px;
+}
+
+.score-bar { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.score-track {
+  flex: 1; height: 2px;
+  background: var(--black-5); border-radius: 2px; overflow: hidden;
+}
+.score-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim) 0%, var(--accent) 100%);
+  border-radius: 2px;
+}
+.result-card.is-sequel .score-fill {
+  background: linear-gradient(90deg, #2ba890 0%, var(--teal) 100%);
+}
+.score-pct {
+  font-size: 0.55rem; font-weight: 700; color: var(--accent); white-space: nowrap;
+}
+.result-card.is-sequel .score-pct { color: var(--teal); }
+
+/* ── LOADING ──────────────────────────────────────────────────── */
+.loading { display: none; text-text-align: center; padding: 40px 0; }
+.loading.visible { display: block; }
+
+.spinner {
+  display: inline-flex; gap: 4px; align-items: flex-end;
+  height: 24px; margin-bottom: 12px;
+}
+.spin-bar {
+  width: 3px; background: var(--accent); border-radius: 2px;
+  animation: barBounce .8s ease-in-out infinite;
+}
+.spin-bar:nth-child(1) { animation-delay: 0s;   height: 40%; }
+.spin-bar:nth-child(2) { animation-delay: 0.1s; height: 70%; }
+.spin-bar:nth-child(3) { animation-delay: 0.2s; height: 100%; }
+.spin-bar:nth-child(4) { animation-delay: 0.3s; height: 70%; }
+.spin-bar:nth-child(5) { animation-delay: 0.4s; height: 40%; }
+
+@keyframes barBounce {
+  0%,100% { transform: scaleY(.4); opacity: .4; }
+  50%      { transform: scaleY(1);  opacity: 1; }
+}
+.loading-text {
+  font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--grey-3);
+}
+
+/* ── ERROR BOX ────────────────────────────────────────────────── */
+.error-box {
+  display: none;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,80,80,0.25);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px;
+}
+.error-box.visible { display: block; }
+.error-msg { font-size: 0.8rem; font-weight: 500; color: var(--red); margin-bottom: 8px; }
+.suggestions-label {
+  font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--grey-3); margin-bottom: 4px;
+}
+.suggestions-list { list-style: none; }
+.suggestions-list li {
+  font-size: 0.75rem; font-weight: 400; color: var(--grey-2);
+  padding: 4px 0; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+}
+.suggestions-list li::before { content: '→'; color: var(--accent); font-size: 0.7rem; }
+.suggestions-list li:hover { color: var(--accent); }
+
+/* ── FOOTER ───────────────────────────────────────────────────── */
+footer {
+  position: relative; z-index: 2;
+  border-top: 1px solid var(--border); padding: 16px;
+  display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 8px;
+}
+.footer-left {
+  font-size: 0.6rem; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--grey-3);
+  width: 100%; text-align: center; order: 2; margin-top: 8px;
+}
+.footer-left strong { color: var(--accent); }
+.footer-signals {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  justify-content: center; width: 100%; order: 1;
+}
+.footer-signal {
+  font-size: 0.55rem; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--grey-3); border: 1px solid var(--border);
+  padding: 2px 6px; border-radius: 20px;
+}
+
+/* ── SCROLLBAR ────────────────────────────────────────────────── */
+.dropdown::-webkit-scrollbar { width: 3px; }
+.dropdown::-webkit-scrollbar-track { background: var(--black-3); }
+.dropdown::-webkit-scrollbar-thumb { background: var(--black-5); border-radius: 2px; }
+
+/* ── RESPONSIVE: TABLET ──────────────────────────────────────── */
+@media (min-width: 480px) {
+  .hero { padding: 110px 24px 44px; }
+  .content { padding: 0 24px 80px; }
+  .cards-grid { gap: 14px; }
+  .result-card:hover { transform: translateY(-4px); }
+  .card-body { padding: 12px; }
+  .card-title { font-size: 0.85rem; }
+  .card-runtime { display: block; font-size: 0.6rem; }
+  .card-overview { -webkit-line-clamp: 3; }
+  .footer-left { width: auto; order: 1; margin-top: 0; }
+  .footer-signals { width: auto; order: 2; }
+  .input-poster { width: 72px; }
+  .input-title { font-size: 1.2rem; }
+  .input-tagline { display: block; }
+  .dd-genre { display: block; }
+}
+
+/* ── RESPONSIVE: DESKTOP ─────────────────────────────────────── */
+@media (min-width: 768px) {
+  header { padding: 0 32px; }
+  .logo { font-size: 1.15rem; }
+  .header-badge { font-size: 0.65rem; padding: 4px 10px; }
+  .hero { padding: 120px 24px 48px; }
+  .hero-eyebrow { font-size: 0.7rem; }
+  .hero-sub { font-size: 0.95rem; }
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .result-card:hover { box-shadow: 0 16px 40px rgba(0,0,0,0.6), 0 0 0 1px var(--accent-border); }
+  .card-director { display: block; font-size: 0.7rem; }
+  .input-overview { font-size: 0.82rem; -webkit-line-clamp: 2; }
+  footer { padding: 20px 32px; gap: 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────── -->
+<header>
+  <a class="logo" href="#">
+    <div class="logo-dot" style="margin-right:6px"></div>
+    Cine<span>Match</span>
+  </a>
+  <div class="header-actions">
+    <div class="theme-switcher">
+      <div class="theme-btn t-yellow active" data-theme="yellow" title="Yellow Theme"></div>
+      <div class="theme-btn t-blue" data-theme="blue" title="Blue Theme"></div>
+      <div class="theme-btn t-green" data-theme="green" title="Green Theme"></div>
+      <div class="theme-btn t-maroon" data-theme="maroon" title="Maroon Theme"></div>
+    </div>
+    <a href="readme.html" class="header-link">Docs</a>
+    <span class="header-badge">COMP 413 · Content-Based</span>
+  </div>
+</header>
+
+<!-- ── HERO ────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-eyebrow">AI Movie Recommender</div>
+  <h1 class="hero-title">Find your next<br><em>great film</em></h1>
+  <p class="hero-sub">Type any movie title. Get 10 smart recommendations instantly.</p>
+
+  <div class="search-wrap">
+    <div class="search-row">
+      <div class="search-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <input type="text" id="searchInput" class="search-input"
+             placeholder="e.g. Inception, The Godfather…" autocomplete="off">
+      <button class="search-btn" id="searchBtn">Search</button>
+    </div>
+    <div class="dropdown" id="dropdown"></div>
+  </div>
+
+  <div class="signal-pills">
+    <span class="signal-pill">Themes</span>
+    <span class="signal-pill">Keywords</span>
+    <span class="signal-pill">Mood</span>
+    <span class="signal-pill">Genre</span>
+    <span class="signal-pill">Studio</span>
+    <span class="signal-pill">Sequels</span>
+  </div>
+</section>
+
+<!-- ── CONTENT ──────────────────────────────────────────────── -->
+<main class="content">
+
+  <div class="input-card-wrap" id="inputCardWrap">
+    <div class="input-card" id="inputCard"></div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner">
+      <div class="spin-bar"></div><div class="spin-bar"></div>
+      <div class="spin-bar"></div><div class="spin-bar"></div>
+      <div class="spin-bar"></div>
+    </div>
+    <div class="loading-text">Computing similarity scores…</div>
+  </div>
+
+  <div class="error-box" id="errorBox">
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="suggestions-label">Did you mean?</div>
+    <ul class="suggestions-list" id="suggestionList"></ul>
+  </div>
+
+  <div class="results-wrap" id="resultsWrap">
+    <div class="results-header">
+      <h2>Similar to <strong id="resultsTitle"></strong></h2>
+      <div class="sort-control">
+        <label for="sortSelect" class="sort-label">Sort by</label>
+        <select id="sortSelect" class="sort-select">
+          <option value="score">Relevance</option>
+          <option value="year">Year (Newest)</option>
+          <option value="rating">Rating</option>
+          <option value="title">Title (A-Z)</option>
+        </select>
+      </div>
+      <span class="results-badge" id="resultsCount"></span>
+    </div>
+    <div class="cards-grid" id="cardsGrid"></div>
+  </div>
+
+</main>
+
+<!-- ── FOOTER ───────────────────────────────────────────────── -->
+<footer>
+  <span class="footer-left">© 2026 <strong>Kabarak University</strong> · COMP 413</span>
+  <div class="footer-signals">
+    <span class="footer-signal">Themes</span>
+    <span class="footer-signal">Keywords</span>
+    <span class="footer-signal">Mood</span>
+    <span class="footer-signal">Genre</span>
+    <span class="footer-signal">Studio</span>
+    <span class="footer-signal">Sequels</span>
+  </div>
+</footer>
+
+<script>
+const searchInput   = document.getElementById('searchInput');
+const searchBtn     = document.getElementById('searchBtn');
+const dropdown      = document.getElementById('dropdown');
+const inputCardWrap = document.getElementById('inputCardWrap');
+const inputCard     = document.getElementById('inputCard');
+const loading       = document.getElementById('loading');
+const errorBox      = document.getElementById('errorBox');
+const resultsWrap   = document.getElementById('resultsWrap');
+const cardsGrid     = document.getElementById('cardsGrid');
+const resultsTitle  = document.getElementById('resultsTitle');
+const resultsCount  = document.getElementById('resultsCount');
+const signalPills   = document.querySelector('.signal-pills');
+const sortSelect    = document.getElementById('sortSelect');
+
+let debounceTimer = null;
+let currentResults = []; 
+let currentInputTitle = "";
+
+// ── Session Storage for Sort Preference ───────────────────────
+const savedSort = sessionStorage.getItem('cinematch_sort');
+if (savedSort) {
+  sortSelect.value = savedSort;
+}
+
+// ── Theme Switcher Logic ───────────────────────────────────────
+const root = document.documentElement;
+const themeBtns = document.querySelectorAll('.theme-btn');
+
+const themes = {
+  yellow: {
+    accent: '#F5C518',
+    dim: '#c49d10',
+    border: 'rgba(245,197,24,0.25)',
+    glow: 'rgba(245,197,24,0.12)'
+  },
+  blue: {
+    accent: '#3B82F6',
+    dim: '#2563EB',
+    border: 'rgba(59,130,246,0.25)',
+    glow: 'rgba(59,130,246,0.12)'
+  },
+  green: {
+    accent: '#10B981',
+    dim: '#059669',
+    border: 'rgba(16,185,129,0.25)',
+    glow: 'rgba(16,185,129,0.12)'
+  },
+  maroon: {
+    accent: '#E11D48',
+    dim: '#BE123C',
+    border: 'rgba(225,29,72,0.25)',
+    glow: 'rgba(225,29,72,0.12)'
+  }
+};
+
+function setTheme(themeName) {
+  const theme = themes[themeName];
+  if (!theme) return;
+
+  root.style.setProperty('--accent', theme.accent);
+  root.style.setProperty('--accent-dim', theme.dim);
+  root.style.setProperty('--accent-border', theme.border);
+  root.style.setProperty('--accent-glow', theme.glow);
+
+  themeBtns.forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.theme === themeName) {
+      btn.classList.add('active');
+    }
+  });
+}
+
+themeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    setTheme(btn.dataset.theme);
+  });
+});
+
+// ── Autocomplete ──────────────────────────────────────────────
+searchInput.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  const q = searchInput.value.trim();
+  if (q.length < 2) { closeDropdown(); return; }
+  debounceTimer = setTimeout(() => fetchSuggestions(q), 180);
+});
+
+async function fetchSuggestions(q) {
+  try {
+    const res  = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    renderDropdown(data);
+  } catch(e) { closeDropdown(); }
+}
+
+function renderDropdown(items) {
+  dropdown.innerHTML = '';
+  if (!items.length) { closeDropdown(); return; }
+
+  const hdr = document.createElement('div');
+  hdr.className = 'dd-header';
+  hdr.textContent = `${Math.min(items.length, 12)} results`;
+  dropdown.appendChild(hdr);
+
+  items.slice(0, 12).forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'dd-item';
+    const imgHtml = item.poster
+      ? `<img class="dd-thumb" src="${esc(item.poster)}" alt="">`
+      : `<div class="dd-thumb-ph">🎬</div>`;
+    el.innerHTML = `
+      ${imgHtml}
+      <div class="dd-content">
+        <span class="dd-title">${esc(item.title)}</span>
+        ${item.year ? `<span class="dd-year">${item.year}</span>` : ''}
+        <span class="dd-genre">${esc(item.genres || '')}</span>
+      </div>`;
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      searchInput.value = item.title;
+      closeDropdown();
+      doSearch(item.title);
+    });
+    dropdown.appendChild(el);
+  });
+  dropdown.classList.add('open');
+  if (signalPills) signalPills.classList.add('hidden');
+}
+
+function closeDropdown() { dropdown.classList.remove('open'); if (signalPills) signalPills.classList.remove('hidden'); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) closeDropdown();
+});
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter')  { closeDropdown(); doSearch(searchInput.value.trim()); }
+  if (e.key === 'Escape') closeDropdown();
+});
+
+// ── Search trigger ────────────────────────────────────────────
+searchBtn.addEventListener('click', () => {
+  closeDropdown(); doSearch(searchInput.value.trim());
+});
+
+async function doSearch(title) {
+  if (!title) return;
+  closeDropdown();
+
+  inputCardWrap.classList.remove('visible');
+  resultsWrap.classList.remove('visible');
+  errorBox.classList.remove('visible');
+  loading.classList.add('visible');
+  cardsGrid.innerHTML = '';
+  
+  try {
+    const res  = await fetch(`/api/recommend?title=${encodeURIComponent(title)}`);
+    const data = await res.json();
+    loading.classList.remove('visible');
+
+    if (!res.ok) {
+      errorBox.classList.add('visible');
+      document.getElementById('errorMsg').textContent = `"${title}" not found.`;
+      const ul = document.getElementById('suggestionList');
+      ul.innerHTML = '';
+      (data.suggestions || []).forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = s;
+        li.addEventListener('click', () => { searchInput.value = s; doSearch(s); });
+        ul.appendChild(li);
+      });
+      return;
+    }
+
+    currentInputTitle = data.input.title;
+    currentResults = data.results; 
+    
+    renderInputCard(data.input);
+    applySortAndRender(); 
+
+  } catch(err) {
+    loading.classList.remove('visible');
+    errorBox.classList.add('visible');
+    document.getElementById('errorMsg').textContent =
+      'Connection error. Is the Flask server running?';
+  }
+}
+
+// ── Sort Logic ────────────────────────────────────────────────
+sortSelect.addEventListener('change', () => {
+  sessionStorage.setItem('cinematch_sort', sortSelect.value);
+  
+  if (currentResults.length > 0) {
+    applySortAndRender();
+  }
+});
+
+function applySortAndRender() {
+  const criteria = sortSelect.value;
+  let sorted = [...currentResults]; 
+
+  if (criteria === 'year') {
+    sorted.sort((a, b) => (parseInt(b.year) || 0) - (parseInt(a.year) || 0));
+  } else if (criteria === 'rating') {
+    sorted.sort((a, b) => (b.vote_avg || 0) - (a.vote_avg || 0));
+  } else if (criteria === 'title') {
+    sorted.sort((a, b) => a.title.localeCompare(b.title));
+  } else {
+    sorted.sort((a, b) => b.score - a.score);
+  }
+
+  renderResults(sorted, currentInputTitle);
+}
+
+// ── Input Movie Card ──────────────────────────────────────────
+function renderInputCard(m) {
+  const posterHtml = m.poster
+    ? `<img src="${esc(m.poster)}" alt="poster" loading="lazy">`
+    : `<div class="input-poster-ph">🎬</div>`;
+
+  inputCard.innerHTML = `
+    <div class="input-poster">${posterHtml}</div>
+    <div class="input-info">
+      <div class="input-label">Now searching based on</div>
+      <div class="input-title">${esc(m.title || '')}</div>
+      <div class="input-meta">
+        ${m.year     ? `<span class="meta-tag yellow">${m.year}</span>` : ''}
+        ${m.year && m.genres ? `<span class="meta-sep">·</span>` : ''}
+        ${m.genres   ? `<span class="meta-tag">${esc(m.genres)}</span>` : ''}
+        ${m.vote_avg ? `<span class="meta-sep">·</span>
+                        <span class="meta-tag yellow">★ ${m.vote_avg}</span>` : ''}
+      </div>
+      ${m.tagline  ? `<div class="input-tagline">"${esc(m.tagline)}"</div>` : ''}
+      ${m.overview ? `<div class="input-overview">${esc(m.overview)}</div>` : ''}
+    </div>`;
+  inputCardWrap.classList.add('visible');
+}
+
+// ── Results Grid ──────────────────────────────────────────────
+function renderResults(results, title) {
+  resultsTitle.textContent = title;
+  resultsCount.textContent = `${results.length} matches`;
+  resultsWrap.classList.add('visible');
+  
+  cardsGrid.innerHTML = ''; 
+
+  const maxScore = Math.max(...results.map(r => r.score), 0.001);
+
+  results.forEach((r, i) => {
+    const pct      = Math.round((r.score / maxScore) * 100);
+    const isSequel = r.is_sequel === true;
+
+    const posterHtml = r.poster
+      ? `<img src="${esc(r.poster)}" alt="${esc(r.title)}" loading="lazy">`
+      : `<div class="card-poster-ph">🎬</div>`;
+
+    const badgeHtml = isSequel
+      ? `<span class="card-sequel-badge">sequel</span>`
+      : `<span class="card-rank">#${i + 1}</span>`;
+
+    const card = document.createElement('div');
+    card.className = 'result-card' + (isSequel ? ' is-sequel' : '');
+    card.style.animationDelay = `${i * 0.03}s`;
+
+    card.addEventListener('click', () => {
+      searchInput.value = r.title;
+      doSearch(r.title);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    card.innerHTML = `
+      <div class="card-poster">
+        ${posterHtml}
+        ${badgeHtml}
+        <span class="card-score-badge">${r.score.toFixed(3)}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${esc(r.title)}</div>
+        <div class="card-meta">
+          ${r.year ? `<span class="card-year">${r.year}</span>` : ''}
+          ${r.vote_avg ? `
+            <span class="card-dot">•</span>
+            <span class="card-rating">
+              <svg viewBox="0 0 24 24">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02
+                                  12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              ${r.vote_avg}
+            </span>` : ''}
+          ${r.runtime ? `<span class="card-dot">•</span>
+                         <span class="card-runtime">${r.runtime}m</span>` : ''}
+        </div>
+        ${r.genres   ? `<div class="card-genre">${esc(r.genres)}</div>`   : ''}
+        ${r.director ? `<div class="card-director">dir. ${esc(r.director)}</div>` : ''}
+        ${r.overview ? `<div class="card-overview">${esc(r.overview)}</div>` : ''}
+        <div class="score-bar">
+          <div class="score-track">
+            <div class="score-fill" style="width:${pct}%"></div>
+          </div>
+          <span class="score-pct">${pct}%</span>
+        </div>
+      </div>`;
+
+    cardsGrid.appendChild(card);
+  });
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
