@@ -1,12 +1,13 @@
-# ─────────────────────────────────────────────
-# MODULE 0 — MOUNT DRIVE & COPY ZIP
-# ─────────────────────────────────────────────
+
+#* ────────────────────────────────────────────────────────────────────────────────────────
+#* MODULE 0 — MOUNT DRIVE & COPY ZIP
+#* ────────────────────────────────────────────────────────────────────────────────────────
 from google.colab import drive
 drive.mount("/content/drive")
 
 import shutil, os, zipfile
 
-ZIP_IN_DRIVE = "/content/drive/MyDrive/archiveTWO.zip"  # ✏️ change if needed
+ZIP_IN_DRIVE = "/content/drive/MyDrive/archiveTWO.zip"  #! https://www.kaggle.com/datasets/ggtejas/tmdb-imdb-merged-movies-dataset
 shutil.copy(ZIP_IN_DRIVE, "/content/archiveTWO.zip")
 os.makedirs("/content/data", exist_ok=True)
 with zipfile.ZipFile("/content/archiveTWO.zip", "r") as z:
@@ -14,18 +15,18 @@ with zipfile.ZipFile("/content/archiveTWO.zip", "r") as z:
 print("✅ Unzipped:", os.listdir("/content/data"))
 
 
-# ─────────────────────────────────────────────
-# MODULE 1 — DEPENDENCIES
-# ─────────────────────────────────────────────
+#. ───────────────────────────────────────────────────────────────────────────────────────
+#. MODULE 1 — DEPENDENCIES
+#. ───────────────────────────────────────────────────────────────────────────────────────
 import subprocess, sys
 for pkg in ["pandas", "numpy", "scikit-learn", "scipy"]:
     subprocess.check_call([sys.executable, "-m", "pip", "install", pkg, "--quiet"])
 print("✅ Dependencies ready.")
 
 
-# ─────────────────────────────────────────────
-# MODULE 2 — IMPORTS & CONFIG
-# ─────────────────────────────────────────────
+#? ───────────────────────────────────────────────────────────────────────────────────────
+#? MODULE 2 — IMPORTS & CONFIG
+#? ───────────────────────────────────────────────────────────────────────────────────────
 import gc, re, pickle
 import numpy as np
 import pandas as pd
@@ -37,22 +38,22 @@ DATA_DIR  = "/content/data"
 MODEL_DIR = "/content/models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# Signal weights
+#? Signal weights                                                                        
 W_GENRE    = 0.25
 W_KEYWORDS = 0.20
 W_PEOPLE   = 0.20
 W_OVERVIEW = 0.15
 W_NUMERIC  = 0.20
 
-TOP_N_POPULAR = 50_000   # only keep the 50K most-rated movies — plenty for recs
+TOP_N_POPULAR = 50_000   #? only keepin' the 50K most-rated movies — plenty for recz    
 
 
-# ─────────────────────────────────────────────
-# MODULE 3 — LOAD & FILTER
-# The dataset has 367K movies but most are
-# obscure with 0 votes. We keep only the most
-# relevant ones so the model is actually useful.
-# ─────────────────────────────────────────────
+#$ ───────────────────────────────────────────────────────────────────────────────────────
+#$ MODULE 3 — LOAD & FILTER
+#$ The dataset has 367K movies but most are
+#$ obscure with 0 votes. We keep only the most
+#$ relevant ones so the model is actually useful.
+#$ ───────────────────────────────────────────────────────────────────────────────────────
 csv_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
 df = pd.read_csv(os.path.join(DATA_DIR, csv_files[0]), low_memory=False)
 df.columns = [c.strip().lower() for c in df.columns]
@@ -94,14 +95,14 @@ import psutil
 print(f"💾 RAM: {psutil.Process().memory_info().rss/1e9:.1f} GB")
 
 
-# ─────────────────────────────────────────────
-# MODULE 4 — BUILD FEATURE VECTORS
-# THE KEY INSIGHT:
-#   Store the vectors, NOT the similarity matrix.
-#   A 50K × 5K sparse matrix = ~50 MB.
-#   A 50K × 50K dense matrix = 10 GB.
-#   We compute similarity only at query time (instant).
-# ─────────────────────────────────────────────
+#$ ───────────────────────────────────────────────────────────────────────────────────────
+#$ MODULE 4 — BUILD FEATURE VECTORS
+#$ THE KEY INSIGHT:
+#$   Store the vectors, NOT the similarity matrix.
+#$   A 50K × 5K sparse matrix = ~50 MB.
+#$   A 50K × 50K dense matrix = 10 GB.
+#$   We compute similarity only at query time (instant).
+#$ ───────────────────────────────────────────────────────────────────────────────────────
 
 def clean(s):
     return re.sub(r"[,;|]+", " ", str(s)).lower().strip()
@@ -146,11 +147,11 @@ print(f"   Numeric : {M_num.shape}")
 print(f"💾 RAM: {psutil.Process().memory_info().rss/1e9:.1f} GB")
 
 
-# ─────────────────────────────────────────────
-# MODULE 5 — COMBINE INTO ONE WEIGHTED MATRIX
-# Weighted stack → single sparse query matrix
-# (50K × ~13K sparse, ~200 MB max)
-# ─────────────────────────────────────────────
+#$ ───────────────────────────────────────────────────────────────────────────────────────
+#$ MODULE 5 — COMBINE INTO ONE WEIGHTED MATRIX
+#$ Weighted stack → single sparse query matrix
+#$ (50K × ~13K sparse, ~200 MB max)
+#$ ───────────────────────────────────────────────────────────────────────────────────────
 print("\n🔀 Building combined weighted feature matrix...")
 
 # Stack all signals horizontally with their weights applied
@@ -176,13 +177,13 @@ gc.collect()
 print(f"💾 RAM after cleanup: {psutil.Process().memory_info().rss/1e9:.1f} GB")
 
 
-# ─────────────────────────────────────────────
-# MODULE 6 — SAVE ARTEFACTS
-# We save:
-#   combined.pkl  — the sparse feature matrix (~200 MB)
-#   movie_meta.pkl — title, genre, cast, poster etc.
-#   title_index.pkl — movie_name → row index lookup
-# ─────────────────────────────────────────────
+#$ ───────────────────────────────────────────────────────────────────────────────────────
+#$ MODULE 6 — SAVE ARTEFACTS
+#$ We save:
+#$   combined.pkl  — the sparse feature matrix (~200 MB)
+#$   movie_meta.pkl — title, genre, cast, poster etc.
+#$   title_index.pkl — movie_name → row index lookup
+#$ ───────────────────────────────────────────────────────────────────────────────────────
 movie_meta = df[[
     "movie_name", "genres", "directors", "cast",
     "overview", "vote_average", "vote_count",
@@ -206,10 +207,10 @@ for f in os.listdir(MODEL_DIR):
 print(f"\n💾 Final RAM: {psutil.Process().memory_info().rss/1e9:.1f} GB")
 
 
-# ─────────────────────────────────────────────
-# MODULE 7 — RECOMMEND & SEARCH
-# Query time: one sparse dot product (instant)
-# ─────────────────────────────────────────────
+#$ ──────────────────────────────────────────────────────────────────────────────────────
+#$ MODULE 7 — RECOMMEND & SEARCH
+#$ Query time: one sparse dot product (instant)
+#$ ──────────────────────────────────────────────────────────────────────────────────────
 meta_map = movie_meta.set_index("movie_name")
 
 def recommend(movie_title, n=10):
@@ -256,7 +257,12 @@ def search(keyword):
 print("\n✅ Done!  recommend('Inception')  |  search('dark')")
 
 
-# ─────────────────────────────────────────────
-# MODULE 8 — INFERENCE  ✏️ CHANGE THIS
-# ─────────────────────────────────────────────
+#$ ───────────────────────────────────────────────────────────────────────────────────
+#$ MODULE 8 — INFERENCE  ✏️ TESTIN'
+#$ ───────────────────────────────────────────────────────────────────────────────────
 recommend("Inception")
+
+#$ ───────────────────────────────────────────────────────────────────────────────────
+
+
+# *################################# THE END SHUU ####################################
